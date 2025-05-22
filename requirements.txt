@@ -1,0 +1,6 @@
+flask
+gunicorn
+yt-dlp
+pydub
+werkzeug
+psutil
