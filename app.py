@@ -1,23 +1,23 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
-from yt_dlp import YoutubeDL
 import os
 import time
 import psutil
+import requests
 from threading import Thread
-from werkzeug.utils import secure_filename
+from yt_dlp import YoutubeDL
 from datetime import timedelta
+from werkzeug.utils import secure_filename
+from flask import Flask, request, jsonify, send_from_directory, render_template
+
 
 app = Flask(__name__)
 DOWNLOAD_FOLDER = 'stream'
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 URL = 'https://ytdlpapi.fly.dev'
 
-# Enable pretty print by default
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.json.sort_keys = False
 app.json.compact = False
 
-# Ensure download directory exists
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
@@ -35,7 +35,8 @@ def delete_file_later(filepath, delay=3600):
 def get_server_stats():
     """Get server statistics including uptime and RAM usage"""
     try:
-        uptime_seconds = time.time() - psutil.boot_time()
+        process = psutil.Process(os.getpid())
+        uptime_seconds = time.time() - process.create_time()
         uptime = str(timedelta(seconds=uptime_seconds)).split('.')[0]
         
         ram = psutil.virtual_memory()
@@ -81,15 +82,30 @@ def home():
                 'runtime': stats['runtime'],
                 'your_ip': request.remote_addr,
                 'server_ram': stats['server_ram'],
-                'params': [
+                'supports': [
+                    'youtube',
+                    'tiktok',
+                    'instagram',
+                    'twitter(x)',
+                    'soundcloud',
+                    'pornhub',
+                    'xnxx',
+                    'xvideos',
+                    'youporn'
+                ],
+                'yts_param': [
+                    'query (required)'
+                ],
+                'dl_params': [
                     'url (required)',
                     'format (optional)'
                 ],
                 'endpoints': [
-                    '/api/ytmp3.php',
-                    '/api/ytmp4.php'
+                    '/api/yts.php',
+                    '/api/audio.php',
+                    '/api/video.php'
                 ],
-                'info': 'Files are auto deleted, make sure to download. Available video formats are 360p, 720p, 1080p, 4k and can be passed as ?url=...&format=... Default is 720p'
+                'info': 'Files are auto deleted soon, make sure to download if you intend to. Available video formats are 360p, 480p, 720p, 1080p, 4k/2160p and can be passed as ?url=...&format=... Default is 720p if format param is empty. If a requested format is not available for a specific video, its highest quality available will be downloaded.'
             }
         }
         return jsonify(response)
@@ -117,7 +133,27 @@ def try_page():
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
-@app.route('/api/ytmp3.php', methods=['GET'])
+
+@app.route('/api/yts.php')
+def search_youtube():
+    query = request.args.get('query')
+    if not query:
+        return jsonify({
+            'status': 400,
+            'success': False,
+            'creator': 'Gifted Tech',
+            'error': 'QUERY parameter is required'
+        }), 400
+    
+    try:
+        response = requests.get(f'https://yts.giftedtech.co.ke/?q={query}')
+        response.raise_for_status()  
+        return jsonify(response.json()), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": str(e)}), 500
+        
+
+@app.route('/api/audio.php', methods=['GET'])
 def download_audio():
     url = request.args.get('url')
 
@@ -126,7 +162,7 @@ def download_audio():
             'status': 400,
             'success': False,
             'creator': 'Gifted Tech',
-            'error': 'URL is required'
+            'error': 'URL parameter is required'
         }), 400
 
     ydl_opts = {
@@ -134,11 +170,13 @@ def download_audio():
         'cookiefile': 'cookies.txt',
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
+        'prefer_ffmpeg': False,
+        #'noplaylist': True,
+       # 'postprocessors': [{
+        #    'key': 'FFmpegExtractAudio',
+        #    'preferredcodec': 'mp3',
+       #     'preferredquality': '320',
+       # }],
         'quiet': True,
         'no_warnings': True
     }
@@ -151,7 +189,7 @@ def download_audio():
             original_filename = ydl.prepare_filename(info_dict)
             mp3_filename = original_filename.replace('.webm', '.mp3').replace('.m4a', '.mp3')
             
-            safe_filename = secure_filename(title).replace(' ', '_') + '.mp3'
+            safe_filename = secure_filename(title).replace(' ', '_') + '_by_giftedapis' + '.mp3'
             output_path = os.path.join(DOWNLOAD_FOLDER, safe_filename)
 
             if os.path.exists(mp3_filename):
@@ -168,11 +206,11 @@ def download_audio():
                 'success': True,
                 'creator': 'Gifted Tech',
                 'result': {
-                    'format': '192kbps',
+                    'format': '320kbps',
                     'title': title,
-                    'yt_url': url,
+                    'src_url': url,
                     'thumbnail': thumbnail,
-                    'info': 'File will be auto deleted soon, make sure to download it if you intend to.',
+                    'info': 'Audio file will be auto deleted soon, make sure to download it if you intend to.',
                     'stream_url': f'{URL}/stream.php/{safe_filename}',
                     'download_url': f'{URL}/download.php/{safe_filename}'
                 }
@@ -188,7 +226,8 @@ def download_audio():
             'error': str(e)
         }), 500
 
-@app.route('/api/ytmp4.php', methods=['GET'])
+
+@app.route('/api/video.php', methods=['GET'])
 def download_video():
     url = request.args.get('url')
     format = request.args.get('format', '720p')
@@ -198,7 +237,7 @@ def download_video():
             'status': 400,
             'success': False,
             'creator': 'Gifted Tech',
-            'error': 'URL is required'
+            'error': 'URL parameter is required'
         }), 400
 
     format_map = {
@@ -206,6 +245,7 @@ def download_video():
         '480p': 'bestvideo[height<=480]+bestaudio/best',
         '720p': 'bestvideo[height<=720]+bestaudio/best',
         '1080p': 'bestvideo[height<=1080]+bestaudio/best',
+        '2160p': 'bestvideo[height<=2160]+bestaudio/best',
         '4k': 'bestvideo[height<=2160]+bestaudio/best'
     }
 
@@ -225,7 +265,7 @@ def download_video():
             thumbnail = info_dict.get('thumbnail', 'unknown')
             file_path = ydl.prepare_filename(info_dict)
             
-            safe_filename = secure_filename(title).replace(' ', '_') + '.mp4'
+            safe_filename = secure_filename(title).replace(' ', '_') + f'_{format}' + '_by_giftedapis' + '.mp4'
             output_path = os.path.join(DOWNLOAD_FOLDER, safe_filename)
 
             os.rename(file_path, output_path)
@@ -238,11 +278,11 @@ def download_video():
                 'result': {
                     'format': format,
                     'title': title,
-                    'yt_url': url,
+                    'src_url': url,
                     'thumbnail': thumbnail,
                     'stream_url': f'{URL}/stream.php/{safe_filename}',
                     'download_url': f'{URL}/download.php/{safe_filename}',
-                    'info': 'File will be auto deleted soon, make sure to download it. Available video formats are 360p, 720p, 1080p, 4k and can be passed as ?url=...&format=... Default is 720p'
+                    'info': 'Video file will be auto deleted soon, make sure to download it if you intend to. Available video formats are 360p, 480p, 720p, 1080p, 4k/2160p and can be passed as ?url=...&format=... Default is 720p if format param is empty. If a requested format is not available for a specific video, its highest quality available will be downloaded.'
                 }
             }
             
@@ -255,6 +295,7 @@ def download_video():
             'creator': 'Gifted Tech',
             'error': str(e)
         }), 500
+
 
 @app.route('/download.php/<filename>', methods=['GET'])
 def download_file(filename):
@@ -271,7 +312,7 @@ def download_file(filename):
         return jsonify({
             'status': 404,
             'success': False,
-            'error': 'File not found'
+            'error': 'File not found or has been auto deleted'
         }), 404
 
 if __name__ == '__main__':

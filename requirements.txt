@@ -1,6 +1,7 @@
 flask
-gunicorn
-yt-dlp
 pydub
-werkzeug
 psutil
+yt-dlp
+gunicorn
+requests
+werkzeug

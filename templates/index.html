@@ -67,6 +67,9 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .quality-selector {
+            display: none;
+        }
     </style>
 </head>
 <body class="min-h-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
@@ -119,7 +122,7 @@
                     <h2 class="text-2xl font-bold mb-6 text-center">YouTube Downloader</h2>
                     <div class="flex flex-col space-y-4">
                         <div class="relative">
-                            <input type="text" id="search-input" placeholder="Enter YouTube URL" 
+                            <input type="text" id="search-input" placeholder="Enter YouTube URL or search term" 
                                    class="w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
                             <button id="search-button" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition">
                                 <i class="fas fa-search"></i>
@@ -143,14 +146,31 @@
                         </div>
                         <div class="w-full text-center mb-6">
                             <h3 id="video-title" class="text-xl font-bold mb-2 line-clamp-2"></h3>
+                            <div class="flex justify-center items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                                <span id="video-author"><i class="fas fa-user mr-1"></i> <span></span></span>
+                                <span id="video-views"><i class="fas fa-eye mr-1"></i> <span></span></span>
+                                <span id="video-duration"><i class="fas fa-clock mr-1"></i> <span></span></span>
+                            </div>
                         </div>
-                        <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6 w-full">
-                            <button id="audio-download-btn" class="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition transform hover:scale-105">
-                                <i class="fas fa-music mr-2"></i> Download Audio (MP3)
-                            </button>
-                            <button id="video-download-btn" class="px-6 py-3 bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg font-medium transition transform hover:scale-105">
-                                <i class="fas fa-video mr-2"></i> Download Video
-                            </button>
+                        <div class="flex flex-col space-y-4 w-full">
+                            <div class="flex items-center space-x-2">
+                                <select id="download-type" class="flex-grow px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="mp3">Download Audio (MP3)</option>
+                                    <option value="mp4">Download Video (MP4)</option>
+                                </select>
+                                <button id="download-submit" class="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition transform hover:scale-105">
+                                    <i class="fas fa-download mr-2"></i> Download
+                                </button>
+                            </div>
+                            <div id="quality-selector" class="quality-selector">
+                                <select id="video-quality" class="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="360p">360p</option>
+                                    <option value="480p">480p</option>
+                                    <option value="720p" selected>720p</option>
+                                    <option value="1080p">1080p</option>
+                                    <option value="2160p">4K (2160p)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -222,8 +242,10 @@
         // DOM Elements
         const searchInput = document.getElementById('search-input');
         const searchButton = document.getElementById('search-button');
-        const audioDownloadBtn = document.getElementById('audio-download-btn');
-        const videoDownloadBtn = document.getElementById('video-download-btn');
+        const downloadType = document.getElementById('download-type');
+        const downloadSubmit = document.getElementById('download-submit');
+        const qualitySelector = document.getElementById('quality-selector');
+        const videoQuality = document.getElementById('video-quality');
         const streamBtn = document.getElementById('stream-btn');
         const downloadBtn = document.getElementById('download-btn');
         const backToDownloadBtn = document.getElementById('back-to-download');
@@ -246,8 +268,8 @@
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleSearch();
         });
-        audioDownloadBtn.addEventListener('click', () => handleDownload('audio'));
-        videoDownloadBtn.addEventListener('click', () => handleDownload('video'));
+        downloadType.addEventListener('change', handleDownloadTypeChange);
+        downloadSubmit.addEventListener('click', handleDownloadSubmit);
         streamBtn.addEventListener('click', handleStream);
         downloadBtn.addEventListener('click', handleFileDownload);
         backToDownloadBtn.addEventListener('click', () => {
@@ -274,62 +296,97 @@
             sidebarOverlay.classList.toggle('hidden');
         }
 
+        function handleDownloadTypeChange() {
+            if (downloadType.value === 'mp4') {
+                qualitySelector.classList.remove('quality-selector');
+                qualitySelector.classList.add('block');
+            } else {
+                qualitySelector.classList.add('quality-selector');
+                qualitySelector.classList.remove('block');
+            }
+        }
+
         async function handleSearch() {
             const query = searchInput.value.trim();
-            if (!query) return;
-
-            // Validate YouTube URL
-            if (!isValidYouTubeUrl(query) && !isYouTubeShortUrl(query)) {
-                alert('Please enter a valid YouTube URL');
+            if (!query) {
+                alert('Please enter a YouTube URL or search term');
                 return;
             }
 
             showLoading();
 
             try {
-                currentVideo = {
-                    url: query,
-                    title: 'Loading...', // Will be updated after download
-                    thumbnail: '' // Will be updated after download
-                };
+                // Search using the API endpoint
+                const response = await fetch(`/api/yts.php?query=${encodeURIComponent(query)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
 
-                // Show basic result immediately
-                displaySearchResults(currentVideo);
-                hideLoading();
+                if (data.videos && data.videos.length > 0) {
+                    // For simplicity, we'll use the first video result
+                    const video = data.videos[0];
+                    
+                    currentVideo = {
+                        url: video.url,
+                        title: video.name,
+                        thumbnail: video.thumbnail,
+                        author: video.author,
+                        views: video.views,
+                        duration: video.duration,
+                        published: video.published
+                    };
+
+                    displaySearchResults(currentVideo);
+                } else {
+                    throw new Error('No videos found');
+                }
             } catch (error) {
                 alert('Error: ' + error.message);
                 console.error('Search error:', error);
+            } finally {
                 hideLoading();
             }
         }
 
-        function isValidYouTubeUrl(url) {
-            const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
-            return pattern.test(url);
-        }
-
-        function isYouTubeShortUrl(url) {
-            const pattern = /^(https?:\/\/)?(www\.)?youtu\.be\/.+$/;
-            return pattern.test(url);
-        }
-
         function displaySearchResults(video) {
             // Update UI with video info
-            document.getElementById('video-title').textContent = 'Ready to download';
+            document.getElementById('thumbnail-img').src = video.thumbnail;
+            document.getElementById('video-title').textContent = video.title;
+            document.getElementById('video-author').querySelector('span').textContent = video.author;
+            document.getElementById('video-views').querySelector('span').textContent = video.views;
+            document.getElementById('video-duration').querySelector('span').textContent = video.duration;
             
             // Show results section
             resultsSection.classList.remove('hidden');
             searchSection.classList.add('hidden');
+            
+            // Reset download type to MP3
+            downloadType.value = 'mp3';
+            qualitySelector.classList.add('quality-selector');
         }
 
-        async function handleDownload(type) {
+        async function handleDownloadSubmit() {
             if (!currentVideo || !currentVideo.url) return;
 
             showLoading();
 
             try {
-                const apiUrl = type === 'audio' ? '/api/ytmp3.php' : '/api/ytmp4.php';
-                const response = await fetch(`${apiUrl}?url=${encodeURIComponent(currentVideo.url)}`);
+                const type = downloadType.value;
+                let apiUrl, params;
+                
+                if (type === 'mp3') {
+                    apiUrl = '/api/audio.php';
+                    params = `url=${encodeURIComponent(currentVideo.url)}`;
+                } else {
+                    apiUrl = '/api/video.php';
+                    const quality = videoQuality.value;
+                    params = `url=${encodeURIComponent(currentVideo.url)}&format=${quality}`;
+                }
+
+                const response = await fetch(`${apiUrl}?${params}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -355,7 +412,7 @@
             // Update UI with download info
             document.getElementById('download-thumbnail-img').src = downloadData.thumbnail;
             document.getElementById('download-title').textContent = downloadData.title;
-            document.getElementById('download-info').textContent = downloadData.info;
+            document.getElementById('download-info').textContent = downloadData.info || 'Ready to download';
             document.getElementById('download-format').textContent = downloadData.format ? `Format: ${downloadData.format}` : '';
 
             // Show download section
