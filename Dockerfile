@@ -24,4 +24,4 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
 # Run with gunicorn for production
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 4 --threads 2 app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-1300} --workers 4 --threads 2 app:app"]
