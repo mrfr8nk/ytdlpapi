@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 app = Flask(__name__)
 DOWNLOAD_FOLDER = 'stream'
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
-URL = 'https://ytdlpapi.fly.dev'
+URL = 'https://socialdl.giftedtech.co.ke'
 
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.json.sort_keys = False
@@ -316,5 +316,6 @@ def download_file(filename):
         }), 404
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 1300))
     app.run(host='0.0.0.0', port=port)
+
