@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 app = Flask(__name__)
 DOWNLOAD_FOLDER = 'stream'
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
-URL = 'http://subzerodl-api.vercel.app'
+URL = 'https://subzerodl-api.vercel.app'
 
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.json.sort_keys = False
@@ -318,5 +318,6 @@ def download_file(filename):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 1300))
     app.run(host='0.0.0.0', port=port)
+
 
 
