@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 app = Flask(__name__)
 DOWNLOAD_FOLDER = 'stream'
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
-URL = 'https://socialdl.giftedtech.co.ke'
+URL = 'http://subzerodl-api.vercel.app'
 
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.json.sort_keys = False
@@ -77,7 +77,7 @@ def home():
         response = {
             'status': 200,
             'success': True,
-            'creator': 'Gifted Tech',
+            'creator': 'Mr Frank',
             'result': {
                 'runtime': stats['runtime'],
                 'your_ip': request.remote_addr,
@@ -141,7 +141,7 @@ def search_youtube():
         return jsonify({
             'status': 400,
             'success': False,
-            'creator': 'Gifted Tech',
+            'creator': 'Mr Frank',
             'error': 'QUERY parameter is required'
         }), 400
     
@@ -161,7 +161,7 @@ def download_audio():
         return jsonify({
             'status': 400,
             'success': False,
-            'creator': 'Gifted Tech',
+            'creator': 'Mr Frank',
             'error': 'URL parameter is required'
         }), 400
 
@@ -189,7 +189,7 @@ def download_audio():
             original_filename = ydl.prepare_filename(info_dict)
             mp3_filename = original_filename.replace('.webm', '.mp3').replace('.m4a', '.mp3')
             
-            safe_filename = secure_filename(title).replace(' ', '_') + '_by_giftedapis' + '.mp3'
+            safe_filename = secure_filename(title).replace(' ', '_') + '_by_mrfrank_api' + '.mp3'
             output_path = os.path.join(DOWNLOAD_FOLDER, safe_filename)
 
             if os.path.exists(mp3_filename):
@@ -204,7 +204,7 @@ def download_audio():
             response = {
                 'status': 200,
                 'success': True,
-                'creator': 'Gifted Tech',
+                'creator': 'Mr Frank',
                 'result': {
                     'format': '320kbps',
                     'title': title,
@@ -222,7 +222,7 @@ def download_audio():
         return jsonify({
             'status': 500,
             'success': False,
-            'creator': 'Gifted Tech',
+            'creator': 'MrFrank,
             'error': str(e)
         }), 500
 
@@ -236,7 +236,7 @@ def download_video():
         return jsonify({
             'status': 400,
             'success': False,
-            'creator': 'Gifted Tech',
+            'creator': 'Mr Frank',
             'error': 'URL parameter is required'
         }), 400
 
@@ -265,7 +265,7 @@ def download_video():
             thumbnail = info_dict.get('thumbnail', 'unknown')
             file_path = ydl.prepare_filename(info_dict)
             
-            safe_filename = secure_filename(title).replace(' ', '_') + f'_{format}' + '_by_giftedapis' + '.mp4'
+            safe_filename = secure_filename(title).replace(' ', '_') + f'_{format}' + '_by_mrfrankapis' + '.mp4'
             output_path = os.path.join(DOWNLOAD_FOLDER, safe_filename)
 
             os.rename(file_path, output_path)
@@ -274,7 +274,7 @@ def download_video():
             response = {
                 'status': 200,
                 'success': True,
-                'creator': 'Gifted Tech',
+                'creator': 'Mr Frank',
                 'result': {
                     'format': format,
                     'title': title,
@@ -318,4 +318,5 @@ def download_file(filename):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 1300))
     app.run(host='0.0.0.0', port=port)
+
 
